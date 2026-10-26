@@ -5,7 +5,7 @@ const value = (o:Raw,...keys:string[]) => keys.map(k=>o[k]).find(v=>typeof v==='
 export async function GET(request:Request){
  const country = new URL(request.url).searchParams.get('country') === 'US' ? 'US':'CA';
  const today=new Date();
- const days=Array.from({length:5},(_,i)=>{const d=new Date(today);d.setUTCDate(d.getUTCDate()+i);return d.toISOString().slice(0,10)});
+ const days=Array.from({length:7},(_,i)=>{const d=new Date(today);d.setUTCDate(d.getUTCDate()+i);return d.toISOString().slice(0,10)});
  try {
   const results=await Promise.all(days.map(async date=>{
    const url=new URL('https://www.thesportsdb.com/api/v1/json/123/eventstv.php');
@@ -28,7 +28,8 @@ export async function GET(request:Request){
    const date=value(row,'dateEvent','dateEventLocal');
    if(!name||!channel||!date||!/^\d{4}-\d{2}-\d{2}$/.test(date))return [];
    const time=value(row,'strTime','timeEvent')||'00:00:00';
-   const iso=new Date(date+'T'+time.replace(/Z$/,'')+'Z');
+   const timestamp=value(row,'strTimeStamp','strTimestamp');
+   const iso=new Date(timestamp ? timestamp.replace(' ','T').replace(/(?<!Z)$/,'Z') : date+'T'+time.replace(/Z$/,'')+'Z');
    if(Number.isNaN(iso.getTime()))return [];
    const id=value(row,'idEvent','idTV','id')||name+'-'+date+'-'+channel;
    const key=id+'-'+channel;if(seen.has(key))return [];seen.add(key);
