@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+// TheSportsDB free API currently caps Schedule TV responses at ONE listing per request.\n// This route cannot deliver comprehensive national listings without a licensed feed.\nimport { NextResponse } from 'next/server';
 export const revalidate = 1800;
 type Raw = Record<string, unknown>;
 const value = (o:Raw,...keys:string[]) => keys.map(k=>o[k]).find(v=>typeof v==='string'&&v.trim()) as string|undefined;
