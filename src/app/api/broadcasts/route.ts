@@ -4,13 +4,36 @@ type Game={id:string;name:string;sport:string;league:string;startsAt:string;chan
 type NHLGame={id:number;startTimeUTC:string;awayTeam?:{placeName?:{default?:string};commonName?:{default?:string};abbrev?:string};homeTeam?:{placeName?:{default?:string};commonName?:{default?:string};abbrev?:string};tvBroadcasts?:{countryCode?:string;network?:string}[]};
 const nhlName=(t:NHLGame['homeTeam'])=>[t?.placeName?.default,t?.commonName?.default].filter(Boolean).join(' ')||t?.abbrev||'TBD';
 async function nhl(date:string,country:Country):Promise<Game[]>{
- const r=await fetch('https://api-web.nhle.com/v1/schedule/'+date,{next:{revalidate:900},signal:AbortSignal.timeout(9000)});
- if(!r.ok)throw Error('NHL schedule unavailable');
- const data=await r.json() as {gameWeek?:{date:string;games?:NHLGame[]}[]};
- const games=data.gameWeek?.find(w=>w.date===date)?.games||[];
- return games.map(g=>{
- const channels=[...new Set((g.tvBroadcasts||[]).filter(b=>b.countryCode?.toUpperCase()===country&&b.network).map(b=>b.network!))];
- return {id:'nhl-'+g.id,name:nhlName(g.awayTeam)+' vs '+nhlName(g.homeTeam),sport:'Hockey',league:'NHL',startsAt:g.startTimeUTC,channels,channelStatus:channels.length?'listed':'unavailable',source:'NHL',sourceUrl:'https://www.nhl.com/schedule'};
+ // NHL's score endpoint provides per-game tvBroadcasts; schedule responses can omit them.
+ const [scoreResult,scheduleResult]=await Promise.allSettled([
+   fetch('https://api-web.nhle.com/v1/score/'+date,{next:{revalidate:900},signal:AbortSignal.timeout(9000)}),
+   fetch('https://api-web.nhle.com/v1/schedule/'+date,{next:{revalidate:900},signal:AbortSignal.timeout(9000)})
+ ]);
+ let scoreGames:NHLGame[]=[];
+ if(scoreResult.status==='fulfilled'&&scoreResult.value.ok){
+   const data=await scoreResult.value.json() as {games?:NHLGame[]};
+   scoreGames=data.games||[];
+ }
+ let scheduleGames:NHLGame[]=[];
+ if(scheduleResult.status==='fulfilled'&&scheduleResult.value.ok){
+   const data=await scheduleResult.value.json() as {gameWeek?:{date:string;games?:NHLGame[]}[]};
+   scheduleGames=data.gameWeek?.find(w=>w.date===date)?.games||[];
+ }
+ if(scoreResult.status==='rejected'&&scheduleResult.status==='rejected')throw Error('NHL feeds unavailable');
+ if(!scoreGames.length&&!scheduleGames.length&&
+   !(scoreResult.status==='fulfilled'&&scoreResult.value.ok)&&
+   !(scheduleResult.status==='fulfilled'&&scheduleResult.value.ok))throw Error('NHL feeds unavailable');
+ const byId=new Map<number,NHLGame>();
+ for(const game of scheduleGames)byId.set(game.id,game);
+ for(const game of scoreGames){
+   const existing=byId.get(game.id);
+   byId.set(game.id,{...existing,...game,tvBroadcasts:game.tvBroadcasts?.length?game.tvBroadcasts:existing?.tvBroadcasts});
+ }
+ return [...byId.values()].map(g=>{
+   const channels=[...new Set((g.tvBroadcasts||[])
+     .filter(b=>b.countryCode?.toUpperCase()===country&&b.network?.trim())
+     .map(b=>b.network!.trim()))];
+   return {id:'nhl-'+g.id,name:nhlName(g.awayTeam)+' vs '+nhlName(g.homeTeam),sport:'Hockey',league:'NHL',startsAt:g.startTimeUTC,channels,channelStatus:channels.length?'listed':'unavailable',source:'NHL score/schedule',sourceUrl:'https://www.nhl.com/schedule'};
  });
 }
 const leagues=[
