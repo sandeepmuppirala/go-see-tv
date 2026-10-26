@@ -4,7 +4,7 @@ import {Tv2,Search,Radio,ShieldCheck,Globe2,ArrowUpRight,RefreshCw} from 'lucide
 type Country='CA'|'US'|'BOTH';
 type Game={id:string;name:string;sport:string;league:string;startsAt:string;channels:string[];channelsByCountry?:{CA:string[];US:string[]};source:string;sourceUrl:string};
 const sports=['All','Hockey','Basketball','Football','Baseball','Soccer','Racing'];
-const featuredLeagues=[{label:'College Hockey · Men',league:"NCAA Men's Hockey",sport:'Hockey'},{label:'College Hockey · Women',league:"NCAA Women's Hockey",sport:'Hockey'},{label:'College Basketball · Men',league:"NCAA Men',sport:'Basketball'},{label:'College Basketball · Women',league:"NCAA Women',sport:'Basketball'},{label:'WNBA',league:'WNBA',sport:'Basketball'},{label:'PWHL',league:'PWHL',sport:'Hockey'}];
+const featuredLeagues=[{label:'College Hockey · Men',league:"NCAA Men's Hockey",sport:'Hockey'},{label:'College Hockey · Women',league:"NCAA Women's Hockey",sport:'Hockey'},{label:'College Basketball · Men',league:"NCAA Men",sport:'Basketball'},{label:'College Basketball · Women',league:"NCAA Women",sport:'Basketball'},{label:'WNBA',league:'WNBA',sport:'Basketball'},{label:'PWHL',league:'PWHL',sport:'Hockey'}];
 const dateToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Toronto',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 export default function Home(){
  const [country,setCountry]=useState<Country>('BOTH'),[date,setDate]=useState(dateToday),[sport,setSport]=useState('Hockey'),[league,setLeague]=useState('All'),[query,setQuery]=useState('');
