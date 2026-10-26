@@ -1,5 +1,4 @@
-// TheSportsDB free API currently caps Schedule TV responses at ONE listing per request.\n// This route cannot deliver comprehensive national listings without a licensed feed.\nimport { NextResponse } from 'next/server';
-export const revalidate = 1800;
+// TheSportsDB free API currently caps Schedule TV responses at ONE listing per request.\n// This route cannot deliver comprehensive national listings without a licensed feed.\nexport const revalidate = 1800;
 type Raw = Record<string, unknown>;
 const value = (o:Raw,...keys:string[]) => keys.map(k=>o[k]).find(v=>typeof v==='string'&&v.trim()) as string|undefined;
 export async function GET(request:Request){
@@ -58,8 +57,8 @@ export async function GET(request:Request){
   }));
   const supplemental=scoreboard.flatMap(r=>r.status==='fulfilled'?r.value:[]);
   const combined=[...events,...supplemental].filter(e=>new Date(e.startsAt).getTime()>=Date.now()-7200000).sort((a,b)=>a.startsAt.localeCompare(b.startsAt)).slice(0,200);
-  return NextResponse.json({events:combined,source:'TheSportsDB',country,updatedAt:new Date().toISOString(),notice:'Third-party community listings; verify with broadcaster before purchase.'},{headers:{'Cache-Control':'public, s-maxage=1800, stale-while-revalidate=3600'}});
+  return Response.json({events:combined,source:'TheSportsDB',country,updatedAt:new Date().toISOString(),notice:'Third-party community listings; verify with broadcaster before purchase.'},{headers:{'Cache-Control':'public, s-maxage=1800, stale-while-revalidate=3600'}});
  }catch{
-  return NextResponse.json({events:[],source:'TheSportsDB',country,error:'Live listings temporarily unavailable. Please try again later.'},{status:503,headers:{'Cache-Control':'no-store'}});
+  return Response.json({events:[],source:'TheSportsDB',country,error:'Live listings temporarily unavailable. Please try again later.'},{status:503,headers:{'Cache-Control':'no-store'}});
  }
 }
