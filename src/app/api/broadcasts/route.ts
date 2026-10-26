@@ -1,19 +1,43 @@
-export const revalidate = 3600;
-type Country = 'CA' | 'US';
-const directories: Record<Country, Array<{id:string;name:string;kind:'TV network'|'TV and streaming';url:string;description:string}>> = {
- CA:[
- {id:'tsn',name:'TSN',kind:'TV and streaming',url:'https://www.tsn.ca/live',description:'Canadian sports networks and TSN streaming'},
- {id:'sportsnet',name:'Sportsnet',kind:'TV and streaming',url:'https://watch.sportsnet.ca/schedule/tvlistings',description:'Official Sportsnet TV listings'},
- {id:'ctv',name:'CTV',kind:'TV network',url:'https://www.ctv.ca/schedule',description:'Official CTV programming schedule'},
- {id:'cbc',name:'CBC',kind:'TV and streaming',url:'https://www.cbc.ca/programguide/',description:'CBC programming and live coverage'}
- ],
- US:[
- {id:'cbs',name:'CBS',kind:'TV network',url:'https://www.cbs.com/schedule/',description:'Official CBS television schedule'},
- {id:'abc',name:'ABC',kind:'TV network',url:'https://abc.com/schedule',description:'Official ABC television schedule'},
- {id:'espn',name:'ESPN',kind:'TV and streaming',url:'https://www.espn.com/watch/schedule/_/type/upcoming',description:'Official ESPN network and streaming listings'},
- {id:'fox',name:'FOX',kind:'TV network',url:'https://www.fox.com/schedule/',description:'Official FOX television schedule'}
- ]};
+export const revalidate=900;
+type Country='CA'|'US';
+type Game={id:string;name:string;sport:string;startsAt:string;channels:string[];channelStatus:'listed'|'unavailable';source:string;sourceUrl:string};
+type NHLGame={id:number;startTimeUTC:string;awayTeam?:{placeName?:{default?:string};commonName?:{default?:string};abbrev?:string};homeTeam?:{placeName?:{default?:string};commonName?:{default?:string};abbrev?:string};tvBroadcasts?:{countryCode?:string;network?:string}[]};
+const nhlName=(t:NHLGame['homeTeam'])=>[t?.placeName?.default,t?.commonName?.default].filter(Boolean).join(' ')||t?.abbrev||'TBD';
+async function nhl(date:string,country:Country):Promise<Game[]>{
+ const r=await fetch('https://api-web.nhle.com/v1/schedule/'+date,{next:{revalidate:900},signal:AbortSignal.timeout(9000)});
+ if(!r.ok)throw Error('NHL schedule unavailable');
+ const data=await r.json() as {gameWeek?:{date:string;games?:NHLGame[]}[]};
+ const games=data.gameWeek?.find(w=>w.date===date)?.games||[];
+ return games.map(g=>{
+ const channels=[...new Set((g.tvBroadcasts||[]).filter(b=>b.countryCode===country&&b.network).map(b=>b.network!))];
+ return {id:'nhl-'+g.id,name:nhlName(g.awayTeam)+' vs '+nhlName(g.homeTeam),sport:'Hockey',startsAt:g.startTimeUTC,channels,channelStatus:channels.length?'listed':'unavailable',source:'NHL',sourceUrl:'https://www.nhl.com/schedule'};
+ });
+}
+const leagues=[{sport:'Basketball',path:'basketball/nba'},{sport:'Football',path:'football/nfl'},{sport:'Baseball',path:'baseball/mlb'},{sport:'Soccer',path:'soccer/usa.1'}];
+async function espn(date:string,country:Country):Promise<Game[]>{
+ const results=await Promise.allSettled(leagues.map(async l=>{
+ const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/'+l.path+'/scoreboard?dates='+date.replaceAll('-','')+'&limit=200',{next:{revalidate:900},signal:AbortSignal.timeout(9000)});
+ if(!r.ok)throw Error('Scoreboard unavailable');
+ const data=await r.json() as {events?:{id?:string;name?:string;date?:string;competitions?:{broadcasts?:{market?:string;names?:string[]}[];geoBroadcasts?:{market?:{type?:string};media?:{shortName?:string}}[]}[]}[]};
+ return (data.events||[]).filter(e=>e.id&&e.name&&e.date).map(e=>{
+ const competition=e.competitions?.[0];const channels=new Set<string>();
+ if(country==='US'){
+ for(const b of competition?.broadcasts||[])if(b.market?.toLowerCase()==='national')for(const n of b.names||[])channels.add(n);
+ for(const b of competition?.geoBroadcasts||[])if(b.market?.type?.toLowerCase()==='national'&&b.media?.shortName)channels.add(b.media.shortName);
+ }
+ if(country==='CA')for(const b of competition?.geoBroadcasts||[])if(b.market?.type?.toLowerCase()==='canada'&&b.media?.shortName)channels.add(b.media.shortName);
+ return {id:'espn-'+l.path+'-'+e.id,name:e.name!,sport:l.sport,startsAt:e.date!,channels:[...channels],channelStatus:channels.size?'listed' as const:'unavailable' as const,source:'ESPN',sourceUrl:'https://www.espn.com/'};
+ });
+ }));
+ return results.flatMap(r=>r.status==='fulfilled'?r.value:[]);
+}
 export async function GET(request:Request){
- const country:Country=new URL(request.url).searchParams.get('country')==='US'?'US':'CA';
- return Response.json({country,providers:directories[country],events:[],updatedAt:new Date().toISOString(),notice:'Official broadcaster schedules are linked. Individual event/channel assignments are not verified or reproduced without a permitted data source.'},{headers:{'Cache-Control':'public, s-maxage=3600, stale-while-revalidate=3600'}});
+ const params=new URL(request.url).searchParams;
+ const country:Country=params.get('country')==='US'?'US':'CA';
+ const date=params.get('date')||new Date().toISOString().slice(0,10);
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(Date.parse(date)))return Response.json({error:'Invalid date'},{status:400});
+ const settled=await Promise.allSettled([nhl(date,country),espn(date,country)]);
+ const games=settled.flatMap(r=>r.status==='fulfilled'?r.value:[]).sort((a,b)=>a.startsAt.localeCompare(b.startsAt));
+ const errors=settled.map((r,i)=>r.status==='rejected'?(i===0?'NHL':'ESPN'):null).filter(Boolean);
+ return Response.json({country,date,games,updatedAt:new Date().toISOString(),partial:errors.length>0,unavailableSources:errors,notice:'Network listings reflect source data and may be incomplete or region-restricted. Verify with broadcaster.'},{status:errors.length===2?503:200,headers:{'Cache-Control':'public, s-maxage=900, stale-while-revalidate=900'}});
 }
