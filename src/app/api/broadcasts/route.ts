@@ -40,6 +40,8 @@ async function nhl(date:string,country:Country):Promise<Game[]>{
 const leagues=[
  {sport:'Basketball',league:'NBA',path:'basketball/nba'},
  {sport:'Basketball',league:'WNBA',path:'basketball/wnba'},
+ {sport:'Hockey',league:'NCAA Men's Hockey',path:'hockey/mens-college-hockey'},
+ {sport:'Hockey',league:'NCAA Women's Hockey',path:'hockey/womens-college-hockey'},
  {sport:'Basketball',league:'NCAA Men',path:'basketball/mens-college-basketball'},
  {sport:'Basketball',league:'NCAA Women',path:'basketball/womens-college-basketball'},
  {sport:'Football',league:'NFL',path:'football/nfl'},
@@ -81,7 +83,7 @@ async function espn(date:string,country:Country):Promise<Game[]>{
 
  const byCountry={CA:[...channelsByCountry.CA],US:[...channelsByCountry.US]};
  const channels=country==='BOTH'?[...new Set([...byCountry.CA,...byCountry.US])]:byCountry[country];
- return {id:'espn-'+l.path+'-'+e.id,name:e.name!,sport:l.sport,league:l.league,startsAt:e.date!,channels,channelsByCountry:byCountry,channelStatus:channels.length?'listed' as const:'unavailable' as const,source:'ESPN',sourceUrl:'https://www.espn.com/'};
+ return {id:'espn-'+l.path+'-'+e.id,name:e.name!,sport:l.sport,league:l.league,startsAt:e.date!,channels,channelsByCountry:byCountry,channelStatus:channels.length?'listed' as const:'unavailable' as const,source:'ESPN',sourceUrl:l.league==='PWHL'?'https://www.thepwhl.com/en/where-to-watch':l.league.includes('College')||l.league.startsWith('NCAA')?'https://www.espn.com/watch/':l.league==='WNBA'?'https://www.wnba.com/schedule':'https://www.espn.com/'};
  });
  }));
  return results.flatMap(r=>r.status==='fulfilled'?r.value:[]);
