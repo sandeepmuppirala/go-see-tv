@@ -38,7 +38,27 @@ export async function GET(request:Request){
    if(rawUrl){try{const u=new URL(rawUrl.startsWith('http')?rawUrl:'https://'+rawUrl);if(['https:','http:'].includes(u.protocol))link=u.toString()}catch{}}
    return [{id:key,name,category:value(row,'strSport')||'Sports',startsAt:iso.toISOString(),channel,source:'TheSportsDB',sourceUrl:'https://www.thesportsdb.com/',url:link,country}];
   }).filter(e=>new Date(e.startsAt).getTime()>=Date.now()-7200000).sort((a,b)=>a.startsAt.localeCompare(b.startsAt)).slice(0,100);
-  return NextResponse.json({events,source:'TheSportsDB',country,updatedAt:new Date().toISOString(),notice:'Third-party community listings; verify with broadcaster before purchase.'},{headers:{'Cache-Control':'public, s-maxage=1800, stale-while-revalidate=3600'}});
+
+  // ESPN public scoreboard data supplements the severely capped free TV feed.
+  // Broadcast markets are preserved: US listings are NOT represented as Canadian rights.
+  const leagues=[['hockey','nhl','Hockey'],['basketball','nba','Basketball'],['football','nfl','Football'],['baseball','mlb','Baseball'],['soccer','usa.1','Soccer']];
+  const scoreboard=await Promise.allSettled(leagues.map(async ([sport,league,label])=>{
+   const url='https://site.api.espn.com/apis/site/v2/sports/'+sport+'/'+league+'/scoreboard?dates='+days[0].replaceAll('-','')+'-'+days[6].replaceAll('-','')+'&limit=200';
+   const r=await fetch(url,{next:{revalidate:1800},signal:AbortSignal.timeout(9000)});
+   if(!r.ok)return [];
+   const json=await r.json() as {events?:Array<{id?:string;name?:string;date?:string;competitions?:Array<{broadcasts?:Array<{names?:string[];market?:string;type?:{shortName?:string}}>;geoBroadcasts?:Array<{market?:{type?:string};media?:{shortName?:string}}>}>}>};
+   return (json.events||[]).flatMap(event=>{
+    const comp=event.competitions?.[0];if(!event.id||!event.name||!event.date||!comp)return [];
+    const names=new Set<string>();
+    for(const b of comp.broadcasts||[]){if(country==='US'&&b.market==='national')for(const name of b.names||[])names.add(name);}
+    // ESPN does not establish Canadian rights; only explicitly Canadian geo-markets qualify.
+    for(const b of comp.geoBroadcasts||[]){const market=(b.market?.type||'').toLowerCase();if(country==='CA'&&market==='canada'&&b.media?.shortName)names.add(b.media.shortName);if(country==='US'&&market==='national'&&b.media?.shortName)names.add(b.media.shortName);}
+    return [...names].map(channel=>({id:'espn-'+event.id+'-'+channel,name:event.name!,category:label,startsAt:event.date!,channel,source:'ESPN schedule',sourceUrl:'https://www.espn.com/',url:'https://www.espn.com/',country}));
+   });
+  }));
+  const supplemental=scoreboard.flatMap(r=>r.status==='fulfilled'?r.value:[]);
+  const combined=[...events,...supplemental].filter(e=>new Date(e.startsAt).getTime()>=Date.now()-7200000).sort((a,b)=>a.startsAt.localeCompare(b.startsAt)).slice(0,200);
+  return NextResponse.json({events:combined,source:'TheSportsDB',country,updatedAt:new Date().toISOString(),notice:'Third-party community listings; verify with broadcaster before purchase.'},{headers:{'Cache-Control':'public, s-maxage=1800, stale-while-revalidate=3600'}});
  }catch{
   return NextResponse.json({events:[],source:'TheSportsDB',country,error:'Live listings temporarily unavailable. Please try again later.'},{status:503,headers:{'Cache-Control':'no-store'}});
  }
