@@ -72,7 +72,7 @@ async function espn(date:string,country:Country):Promise<Game[]>{
    if(country==='CA'&&caMarket(b.market))for(const n of b.names||[])if(n.trim())channels.add(n.trim());
  }
  for(const b of competition?.geoBroadcasts||[]){
-   const market=typeof b.market==='string'?b.market:b.market?.type||b.market?.name;
+   const market=typeof b.market==='string'?b.market:b.market?.name||b.market?.type;
    const channel=b.media?.shortName||b.media?.name||b.type?.shortName;
    if(channel&&((country==='US'&&usMarket(market))||(country==='CA'&&caMarket(market))))channels.add(channel.trim());
  }
