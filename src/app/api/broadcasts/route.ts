@@ -23,6 +23,7 @@ export async function GET(request:Request){
    const broadcastCountry=value(row,'strCountry','strTVCountry','strChannelCountry','country');
    if(!broadcastCountry||!accepted.has(broadcastCountry.trim().toLowerCase()))return [];
    const name=value(row,'strEvent','strEventName','strMatch','strFilename');
+   const sport=value(row,'strSport')||'Sports';
    const channel=value(row,'strChannel','strTVChannel','strTVStation');
    const date=value(row,'dateEvent','dateEventLocal');
    if(!name||!channel||!date||!/^\d{4}-\d{2}-\d{2}$/.test(date))return [];
@@ -35,7 +36,7 @@ export async function GET(request:Request){
    const rawUrl=value(row,'strWebsite','strChannelWebsite','strURL');
    let link='https://www.thesportsdb.com/';
    if(rawUrl){try{const u=new URL(rawUrl.startsWith('http')?rawUrl:'https://'+rawUrl);if(['https:','http:'].includes(u.protocol))link=u.toString()}catch{}}
-   return [{id:key,name,category:value(row,'strSport')||'Sports',startsAt:iso.toISOString(),channel,source:'TheSportsDB',sourceUrl:'https://www.thesportsdb.com/',url:link,country}];
+   return [{id:key,name,category:/baseball/i.test(name||'')?'Baseball':/rays|brewers|yankees|dodgers|blue jays|mets|red sox|cubs|padres|phillies/i.test(name||'')?'Baseball':sport,startsAt:iso.toISOString(),channel,source:'TheSportsDB',sourceUrl:'https://www.thesportsdb.com/',url:link,country}];
   }).filter(e=>new Date(e.startsAt).getTime()>=Date.now()-7200000).sort((a,b)=>a.startsAt.localeCompare(b.startsAt)).slice(0,100);
 
   // ESPN public scoreboard data supplements the severely capped free TV feed.
@@ -57,7 +58,8 @@ export async function GET(request:Request){
   }));
   const supplemental=scoreboard.flatMap(r=>r.status==='fulfilled'?r.value:[]);
   const combined=[...events,...supplemental].filter(e=>new Date(e.startsAt).getTime()>=Date.now()-7200000).sort((a,b)=>a.startsAt.localeCompare(b.startsAt)).slice(0,200);
-  return Response.json({events:combined,source:'TheSportsDB',country,updatedAt:new Date().toISOString(),notice:'Third-party community listings; verify with broadcaster before purchase.'},{headers:{'Cache-Control':'public, s-maxage=1800, stale-while-revalidate=3600'}});
+  const sanitized=combined.map(e=>({ ...e, category:/rays|brewers|yankees|dodgers|blue jays|mets|red sox|cubs|padres|phillies/i.test(e.name)?'Baseball':e.category, url:e.sourceUrl }));
+  return Response.json({events:sanitized,source:'TheSportsDB',country,updatedAt:new Date().toISOString(),notice:'Third-party community listings; verify with broadcaster before purchase.'},{headers:{'Cache-Control':'public, s-maxage=1800, stale-while-revalidate=3600'}});
  }catch{
   return Response.json({events:[],source:'TheSportsDB',country,error:'Live listings temporarily unavailable. Please try again later.'},{status:503,headers:{'Cache-Control':'no-store'}});
  }
