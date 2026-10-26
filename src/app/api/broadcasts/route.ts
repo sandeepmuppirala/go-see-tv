@@ -18,14 +18,25 @@ async function espn(date:string,country:Country):Promise<Game[]>{
  const results=await Promise.allSettled(leagues.map(async l=>{
  const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/'+l.path+'/scoreboard?dates='+date.replaceAll('-','')+'&limit=200',{next:{revalidate:900},signal:AbortSignal.timeout(9000)});
  if(!r.ok)throw Error('Scoreboard unavailable');
- const data=await r.json() as {events?:{id?:string;name?:string;date?:string;competitions?:{broadcasts?:{market?:string;names?:string[]}[];geoBroadcasts?:{market?:{type?:string};media?:{shortName?:string}}[]}[]}[]};
+ const data=await r.json() as {events?:{id?:string;name?:string;date?:string;competitions?:{broadcasts?:{market?:string;names?:string[]}[];geoBroadcasts?:{market?:{type?:string;name?:string};media?:{shortName?:string;name?:string}}[]}[]}[]};
  return (data.events||[]).filter(e=>e.id&&e.name&&e.date).map(e=>{
  const competition=e.competitions?.[0];const channels=new Set<string>();
- if(country==='US'){
- for(const b of competition?.broadcasts||[])if(b.market?.toLowerCase()==='national')for(const n of b.names||[])channels.add(n);
- for(const b of competition?.geoBroadcasts||[])if(b.market?.type?.toLowerCase()==='national'&&b.media?.shortName)channels.add(b.media.shortName);
+
+ // ESPN broadcast markets may be tagged national, local, or omitted.
+ // Only assign US listings to US; Canadian rights require an explicit Canadian market.
+ const normalize=(s?:string)=>s?.trim().toLowerCase()||'';
+ const usMarket=(s?:string)=>['national','local','regional','us','usa','united states'].includes(normalize(s));
+ const caMarket=(s?:string)=>['ca','can','canada','canadian'].includes(normalize(s));
+ for(const b of competition?.broadcasts||[]){
+   if(country==='US'&&usMarket(b.market))for(const n of b.names||[])if(n.trim())channels.add(n.trim());
+   if(country==='CA'&&caMarket(b.market))for(const n of b.names||[])if(n.trim())channels.add(n.trim());
  }
- if(country==='CA')for(const b of competition?.geoBroadcasts||[])if(b.market?.type?.toLowerCase()==='canada'&&b.media?.shortName)channels.add(b.media.shortName);
+ for(const b of competition?.geoBroadcasts||[]){
+   const market=b.market?.type||b.market?.name;
+   const channel=b.media?.shortName||b.media?.name;
+   if(channel&&((country==='US'&&usMarket(market))||(country==='CA'&&caMarket(market))))channels.add(channel.trim());
+ }
+
  return {id:'espn-'+l.path+'-'+e.id,name:e.name!,sport:l.sport,startsAt:e.date!,channels:[...channels],channelStatus:channels.size?'listed' as const:'unavailable' as const,source:'ESPN',sourceUrl:'https://www.espn.com/'};
  });
  }));
