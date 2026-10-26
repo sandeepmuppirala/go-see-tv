@@ -9,7 +9,7 @@ async function nhl(date:string,country:Country):Promise<Game[]>{
  const data=await r.json() as {gameWeek?:{date:string;games?:NHLGame[]}[]};
  const games=data.gameWeek?.find(w=>w.date===date)?.games||[];
  return games.map(g=>{
- const channels=[...new Set((g.tvBroadcasts||[]).filter(b=>b.countryCode===country&&b.network).map(b=>b.network!))];
+ const channels=[...new Set((g.tvBroadcasts||[]).filter(b=>b.countryCode?.toUpperCase()===country&&b.network).map(b=>b.network!))];
  return {id:'nhl-'+g.id,name:nhlName(g.awayTeam)+' vs '+nhlName(g.homeTeam),sport:'Hockey',league:'NHL',startsAt:g.startTimeUTC,channels,channelStatus:channels.length?'listed':'unavailable',source:'NHL',sourceUrl:'https://www.nhl.com/schedule'};
  });
 }
@@ -35,7 +35,7 @@ async function espn(date:string,country:Country):Promise<Game[]>{
  const results=await Promise.allSettled(leagues.map(async l=>{
  const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/'+l.path+'/scoreboard?dates='+date.replaceAll('-','')+'&limit=200',{next:{revalidate:900},signal:AbortSignal.timeout(9000)});
  if(!r.ok)throw Error('Scoreboard unavailable');
- const data=await r.json() as {events?:{id?:string;name?:string;date?:string;competitions?:{broadcasts?:{market?:string;names?:string[]}[];geoBroadcasts?:{market?:{type?:string;name?:string};media?:{shortName?:string;name?:string}}[]}[]}[]};
+ const data=await r.json() as {events?:{id?:string;name?:string;date?:string;competitions?:{broadcasts?:{market?:string;names?:string[]}[];geoBroadcasts?:{market?:{type?:string;name?:string}|string;media?:{shortName?:string;name?:string};type?:{shortName?:string}}[]}[]}[]};
  return (data.events||[]).filter(e=>e.id&&e.name&&e.date).map(e=>{
  const competition=e.competitions?.[0];const channels=new Set<string>();
 
@@ -49,8 +49,8 @@ async function espn(date:string,country:Country):Promise<Game[]>{
    if(country==='CA'&&caMarket(b.market))for(const n of b.names||[])if(n.trim())channels.add(n.trim());
  }
  for(const b of competition?.geoBroadcasts||[]){
-   const market=b.market?.type||b.market?.name;
-   const channel=b.media?.shortName||b.media?.name;
+   const market=typeof b.market==='string'?b.market:b.market?.type||b.market?.name;
+   const channel=b.media?.shortName||b.media?.name||b.type?.shortName;
    if(channel&&((country==='US'&&usMarket(market))||(country==='CA'&&caMarket(market))))channels.add(channel.trim());
  }
 
@@ -66,6 +66,7 @@ export async function GET(request:Request){
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(Date.parse(date)))return Response.json({error:'Invalid date'},{status:400});
  const settled=await Promise.allSettled([nhl(date,country),espn(date,country)]);
  const games=settled.flatMap(r=>r.status==='fulfilled'?r.value:[]).sort((a,b)=>a.startsAt.localeCompare(b.startsAt));
+ const coverage=Object.values(games.reduce<Record<string,{league:string;games:number;withChannels:number}>>((acc,g)=>{const entry=acc[g.league]||(acc[g.league]={league:g.league,games:0,withChannels:0});entry.games++;if(g.channels.length)entry.withChannels++;return acc;},{})).sort((a,b)=>a.league.localeCompare(b.league));
  const errors=settled.map((r,i)=>r.status==='rejected'?(i===0?'NHL':'ESPN'):null).filter(Boolean);
- return Response.json({country,date,games,updatedAt:new Date().toISOString(),partial:errors.length>0,unavailableSources:errors,notice:'Network listings reflect source data and may be incomplete or region-restricted. Verify with broadcaster.'},{status:errors.length===2?503:200,headers:{'Cache-Control':'public, s-maxage=900, stale-while-revalidate=900'}});
+ return Response.json({country,date,games,coverage,updatedAt:new Date().toISOString(),partial:errors.length>0,unavailableSources:errors,notice:'Network listings reflect source data and may be incomplete or region-restricted. Verify with broadcaster.'},{status:errors.length===2?503:200,headers:{'Cache-Control':'public, s-maxage=900, stale-while-revalidate=900'}});
 }
