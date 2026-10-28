@@ -4,3 +4,30 @@
 .dateControl select{background:#19192a;color:#fff;border:1px solid #534276;border-radius:10px;padding:12px;min-width:160px}
 
 .featuredLeagues{display:flex;gap:10px;overflow-x:auto;padding:6px 0 22px;scrollbar-width:thin}.featuredLeagues button{flex:0 0 auto;border:1px solid #51436b;background:#1c1a2b;color:#e2d9f6;border-radius:999px;padding:11px 16px;font-size:13px;font-weight:700;transition:background .2s,border-color .2s}.featuredLeagues button:hover,.featuredLeagues button:focus-visible{border-color:#bda8ff;background:#33264d}.featuredLeagues button.selected{background:#7759e9;color:#fff;border-color:#a88dff}
+
+/* VELA single-viewport app shell: keep the page fixed and let the guide scroll internally. */
+html,body{height:100%;overflow:hidden}
+body{display:flex;flex-direction:column;min-height:0}
+body>main{flex:1;min-height:0;height:100%;display:flex;flex-direction:column;overflow:hidden}
+.header{flex:0 0 auto;height:58px;width:100%}
+.hero{flex:0 0 auto;padding:16px 18px 12px}
+.hero h1{font-size:clamp(26px,3.4vw,42px);letter-spacing:-1.5px;line-height:1.06;margin:8px auto}
+.hero h1 br{display:none}
+.hero p{font-size:clamp(12px,1.2vw,14px);line-height:1.4;max-width:750px;margin:0 auto 12px}
+.eyebrow{font-size:10px;letter-spacing:1.5px}
+.countries{padding:3px;gap:3px}
+.countries button{padding:8px 13px;font-size:12px}
+.catalog{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;width:100%;max-width:1180px;padding:15px 22px 22px;scrollbar-width:thin}
+.sectionHead h2{font-size:26px;margin:5px 0 12px}
+.featuredLeagues{padding:3px 0 10px}
+.featuredLeagues button{padding:8px 12px;font-size:12px}
+.search{min-height:42px}
+.filters button{padding:9px 11px;font-size:12px}
+.dateControl{margin-bottom:10px}
+.dateControl input,.dateControl select{padding:8px}
+.empty{padding:25px 15px;margin-top:16px}
+.results{margin-top:15px}
+footer{flex:0 0 auto;padding:9px max(22px,calc((100vw - 1120px)/2));gap:10px;font-size:11px}
+.footerbrand{font-size:16px}
+@media(max-width:700px){.header{height:49px;padding:0 14px}.brand{font-size:20px}.brandicon{padding:7px}.hero{padding:10px 12px 9px}.hero h1{font-size:clamp(24px,6vw,31px);margin:6px auto}.hero p{font-size:11px;line-height:1.3;margin-bottom:8px}.eyebrow{font-size:9px;letter-spacing:1px}.countries{display:flex;width:100%;max-width:410px;margin:auto}.countries button{flex:1;padding:7px 4px;font-size:10px}.catalog{padding:10px 13px 15px}.sectionHead h2{font-size:23px}.featuredLeagues{padding-bottom:8px}.controls{gap:9px}.filters{gap:5px}.filters button{padding:7px 9px;font-size:11px}.search{min-width:0;width:100%;flex-basis:100%;min-height:40px}.dateControl{font-size:11px;margin-bottom:8px}footer{flex-direction:row;text-align:left;padding:7px 13px;gap:6px;font-size:9px}footer>span:nth-child(2){display:none}.footerbrand{font-size:14px}}
+@media(max-height:620px){.hero{padding-top:7px;padding-bottom:7px}.hero h1{font-size:24px;margin:4px auto}.hero p{font-size:11px;margin-bottom:6px}.eyebrow{display:none}.countries button{padding:5px 7px}.header{height:44px}footer{padding-top:5px;padding-bottom:5px}}
