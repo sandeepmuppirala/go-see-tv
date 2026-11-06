@@ -1,6 +1,7 @@
 'use client';
 import {useEffect,useMemo,useState} from 'react';
 import {Tv2,Search,Radio,ShieldCheck,Globe2,ArrowUpRight,RefreshCw} from 'lucide-react';
+import {AuthStatus} from './auth-status';
 type Country='CA'|'US'|'BOTH';
 type Game={id:string;name:string;sport:string;league:string;startsAt:string;channels:string[];channelsByCountry?:{CA:string[];US:string[]};source:string;sourceUrl:string};
 const sports=['All','Hockey','Basketball','Football','Baseball','Soccer','Racing'];
@@ -14,7 +15,7 @@ export default function Home(){
  return ()=>controller.abort()},[country,date]);
  const leagueOptions=['All',...Array.from(new Set([...featuredLeagues.filter(l=>sport==='All'||l.sport===sport).map(l=>l.league),...games.filter(g=>sport==='All'||g.sport===sport).map(g=>g.league)]))];
  const filtered=useMemo(()=>games.filter(g=>(league==='All'||g.league===league)&&(sport==='All'||g.sport===sport)&&(g.name+' '+g.channels.join(' ')).toLowerCase().includes(query.toLowerCase())),[games,sport,league,query]);
- return <main><header className="header"><a className="brand" href="/"><span className="brandicon"><Tv2 size={22}/></span><span>VELA</span></a><span className="headerRight"><span className="signal"><Radio size={15}/> VELA · LIVE GUIDE</span><span className="soon">Sign in · Coming soon</span></span></header>
+ return <main><header className="header"><a className="brand" href="/"><span className="brandicon"><Tv2 size={22}/></span><span>VELA</span></a><span className="headerRight"><span className="signal"><Radio size={15}/> VELA · LIVE GUIDE</span><AuthStatus /></span></header>
  <section className="hero"><div className="eyebrow"><span className="dot"/> FIND YOUR GAME. FIND YOUR CHANNEL.</div><h1>Big moments.<br/><em>One place to find them.</em></h1><p>VELA (formerly Go See TV) helps you find live sports and entertainment to watch from the comfort of home. Choose a sport and date to see reported broadcast networks in Canada and the United States.</p><div className="countries" role="group" aria-label="Viewing country"><button className={country==='BOTH'?'selected':''} onClick={()=>setCountry('BOTH')}>🇨🇦 🇺🇸 USA & Canada</button><button className={country==='CA'?'selected':''} onClick={()=>setCountry('CA')}>🇨🇦 Canada</button><button className={country==='US'?'selected':''} onClick={()=>setCountry('US')}>🇺🇸 United States</button></div></section>
  <section className="catalog"><div className="sectionHead"><div><div className="kicker"><Globe2 size={14}/> DAILY SPORTS TV GUIDE</div><h2>What's on today<span className="accent">.</span></h2></div><label className="dateControl">Choose date <input aria-label="Schedule date" type="date" value={date} onChange={e=>setDate(e.target.value)}/></label></div>
  <div className="featuredLeagues" aria-label="Featured leagues">{featuredLeagues.map(item=><button key={item.league} type="button" className={league===item.league?"selected":""} onClick={()=>{setSport(item.sport);setLeague(item.league)}}>{item.label}</button>)}</div>
