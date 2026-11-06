@@ -22,19 +22,31 @@ export function AuthStatus() {
   const [state, setState] = useState<"loading" | "signed-out" | "subscribed" | "not-subscribed">("loading");
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) {
+    async function loadAuthStatus() {
+      // client.ts fails loudly (by design, see that file) if Supabase isn't
+      // configured — which is correct for a real misconfiguration, but this
+      // widget is a secondary feature bolted onto an otherwise fully free,
+      // fully working guide page. A missing env var here must degrade this
+      // one widget, never crash the whole page the way an uncaught throw in
+      // an effect does (React unmounts the nearest boundary's subtree).
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setState("signed-out");
+          return;
+        }
+        const { data } = await supabase
+          .from("product_subscriptions")
+          .select("product, status, current_period_end")
+          .eq("product", "vela")
+          .maybeSingle<ProductSubscription>();
+        setState(hasAccess(data ?? undefined) ? "subscribed" : "not-subscribed");
+      } catch {
         setState("signed-out");
-        return;
       }
-      const { data } = await supabase
-        .from("product_subscriptions")
-        .select("product, status, current_period_end")
-        .eq("product", "vela")
-        .maybeSingle<ProductSubscription>();
-      setState(hasAccess(data ?? undefined) ? "subscribed" : "not-subscribed");
-    });
+    }
+    void loadAuthStatus();
   }, []);
 
   if (state === "loading") return <span className="soon">·</span>;
