@@ -15,7 +15,7 @@ test('defaults to USA & Canada and labels channels separately',async ({page})=>{
  await expect(page.getByText('FOX',{exact:true})).toBeVisible();
 });
 test('US fallback remains visible when Canada has no broadcaster',async ({page})=>{
- await page.getByRole('button',{name:'Basketball'}).click();
+ await page.getByRole('button',{name:'Basketball',exact:true}).click();
  await expect(page.getByText('Raptors at Knicks')).toBeVisible();
  await expect(page.getByText('ESPN',{exact:true})).toBeVisible();
  await expect(page.getByText('No channel provided for Canada by this feed')).toBeVisible();
