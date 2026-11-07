@@ -2,7 +2,7 @@ export const revalidate=900;
 type Country='CA'|'US'|'BOTH';
 type GameState='pre'|'in'|'post';
 type Gender='men'|'women';
-type Game={id:string;name:string;sport:string;league:string;startsAt:string;channels:string[];channelsByCountry:{CA:string[];US:string[]};channelStatus:'listed'|'unavailable';state:GameState;stateDetail?:string;awayScore?:number;homeScore?:number;gender:Gender;source:string;sourceUrl:string};
+type Game={id:string;name:string;sport:string;league:string;startsAt:string;channels:string[];channelsByCountry:{CA:string[];US:string[]};channelStatus:'listed'|'unavailable';state:GameState;stateDetail?:string;awayScore?:number;homeScore?:number;scoreText?:string;gender:Gender;source:string;sourceUrl:string};
 type NHLGame={id:number;startTimeUTC:string;gameState?:string;awayTeam?:{placeName?:{default?:string};commonName?:{default?:string};abbrev?:string;score?:number};homeTeam?:{placeName?:{default?:string};commonName?:{default?:string};abbrev?:string;score?:number};tvBroadcasts?:{countryCode?:string;network?:string}[]};
 const nhlState=(s?:string):GameState=>s==='FUT'||s==='PRE'?'pre':s==='OFF'||s==='FINAL'?'post':'in';
 const nhlName=(t:NHLGame['homeTeam'])=>[t?.placeName?.default,t?.commonName?.default].filter(Boolean).join(' ')||t?.abbrev||'TBD';
@@ -254,7 +254,32 @@ async function cricket(date:string,country:Country):Promise<Game[]>{
      sourceUrl:'https://www.cricbuzz.com'+href,
    });
  }
- return games;
+ // The listing page itself carries no numeric score anywhere (checked
+ // directly) -- only an individual match's own page has one, embedded in
+ // its <title> tag (e.g. "NZ 51/3 (18.4) (Daryl Mitchell 23(46)...)"),
+ // confirmed by reading a real live match page directly. One extra fetch
+ // per match, bounded and tolerant of individual failures -- a slow or
+ // failed score lookup for one match must never block the others or the
+ // match listing itself (which already has everything needed without it).
+ const scoreResults=await Promise.allSettled(games.map(g=>fetchCricketScoreText(g.sourceUrl)));
+ return games.map((g,i)=>({...g,scoreText:scoreResults[i].status==='fulfilled'?scoreResults[i].value:undefined}));
+}
+async function fetchCricketScoreText(matchUrl:string):Promise<string|undefined>{
+ const r=await fetch(matchUrl,{headers:{'User-Agent':CRICKET_UA},next:{revalidate:120},signal:AbortSignal.timeout(6000)});
+ if(!r.ok)return undefined;
+ const html=await r.text();
+ const titleMatch=html.match(/<title>([\s\S]*?)<\/title>/);
+ if(!titleMatch)return undefined;
+ const scorePart=titleMatch[1].split(' | ')[0];
+ const cleaned=decodeHtmlEntities(scorePart.replace(/\s+/g,' ').trim());
+ // Before a match's first ball (e.g. still at the toss), the real
+ // <title> has no score segment at all and " | " never appears, so the
+ // "score part" is actually the page's full descriptive sentence --
+ // confirmed directly against a real toss-stage match page. Detected by
+ // its distinctive boilerplate phrase rather than guessed, since there is
+ // genuinely no score to show yet in that case (not a parsing failure).
+ if(!cleaned||cleaned.includes('Live Cricket Stream'))return undefined;
+ return cleaned;
 }
 const SOURCES=['NHL','ESPN','UFC','Cricbuzz'] as const;
 export async function GET(request:Request){
