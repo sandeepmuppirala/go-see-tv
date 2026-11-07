@@ -1,8 +1,8 @@
 export const revalidate=900;
 type Country='CA'|'US'|'BOTH';
 type GameState='pre'|'in'|'post';
-type Game={id:string;name:string;sport:string;league:string;startsAt:string;channels:string[];channelsByCountry:{CA:string[];US:string[]};channelStatus:'listed'|'unavailable';state:GameState;stateDetail?:string;source:string;sourceUrl:string};
-type NHLGame={id:number;startTimeUTC:string;gameState?:string;awayTeam?:{placeName?:{default?:string};commonName?:{default?:string};abbrev?:string};homeTeam?:{placeName?:{default?:string};commonName?:{default?:string};abbrev?:string};tvBroadcasts?:{countryCode?:string;network?:string}[]};
+type Game={id:string;name:string;sport:string;league:string;startsAt:string;channels:string[];channelsByCountry:{CA:string[];US:string[]};channelStatus:'listed'|'unavailable';state:GameState;stateDetail?:string;awayScore?:number;homeScore?:number;source:string;sourceUrl:string};
+type NHLGame={id:number;startTimeUTC:string;gameState?:string;awayTeam?:{placeName?:{default?:string};commonName?:{default?:string};abbrev?:string;score?:number};homeTeam?:{placeName?:{default?:string};commonName?:{default?:string};abbrev?:string;score?:number};tvBroadcasts?:{countryCode?:string;network?:string}[]};
 const nhlState=(s?:string):GameState=>s==='FUT'||s==='PRE'?'pre':s==='OFF'||s==='FINAL'?'post':'in';
 const nhlName=(t:NHLGame['homeTeam'])=>[t?.placeName?.default,t?.commonName?.default].filter(Boolean).join(' ')||t?.abbrev||'TBD';
 
@@ -11,11 +11,23 @@ const nhlName=(t:NHLGame['homeTeam'])=>[t?.placeName?.default,t?.commonName?.def
 const normalizeMarket=(s?:string)=>s?.trim().toLowerCase()||'';
 const usMarket=(s?:string)=>['national','local','regional','us','usa','united states'].includes(normalizeMarket(s));
 const caMarket=(s?:string)=>['ca','can','canada','canadian'].includes(normalizeMarket(s));
-type ESPNBroadcasts={broadcasts?:{market?:string;names?:string[]}[];geoBroadcasts?:{market?:{type?:string;name?:string}|string;media?:{shortName?:string;name?:string};type?:{shortName?:string}}[];status?:{type?:{state?:string;shortDetail?:string}}};
+type ESPNBroadcasts={broadcasts?:{market?:string;names?:string[]}[];geoBroadcasts?:{market?:{type?:string;name?:string}|string;media?:{shortName?:string;name?:string};type?:{shortName?:string}}[];status?:{type?:{state?:string;shortDetail?:string}};competitors?:{homeAway?:string;score?:string}[]};
 const espnState=(status?:ESPNBroadcasts['status']):GameState=>{
  const s=status?.type?.state;
  return s==='in'?'in':s==='post'?'post':'pre';
 };
+// Only meaningful once the game has actually started — ESPN's own
+// event.name is always "Away at Home" / "Away vs Home", so pairing these
+// as (away, home) keeps score order consistent with the displayed name.
+function espnScores(competition:ESPNBroadcasts|undefined,state:GameState):{awayScore?:number;homeScore?:number}{
+ if(state==='pre')return {};
+ const away=competition?.competitors?.find(c=>c.homeAway==='away');
+ const home=competition?.competitors?.find(c=>c.homeAway==='home');
+ const awayScore=away?.score!==undefined?Number(away.score):undefined;
+ const homeScore=home?.score!==undefined?Number(home.score):undefined;
+ if(awayScore===undefined||homeScore===undefined||Number.isNaN(awayScore)||Number.isNaN(homeScore))return {};
+ return {awayScore,homeScore};
+}
 function channelsFromCompetition(competition:ESPNBroadcasts|undefined){
  const channelsByCountry={CA:new Set<string>(),US:new Set<string>()};
  for(const b of competition?.broadcasts||[]){
@@ -61,7 +73,12 @@ async function nhl(date:string,country:Country):Promise<Game[]>{
      .filter(b=>(country==='BOTH'||b.countryCode?.toUpperCase()===country)&&b.network?.trim())
      .map(b=>b.network!.trim()))];
    const channelsByCountry={CA:[...new Set((g.tvBroadcasts||[]).filter(b=>b.countryCode?.toUpperCase()==='CA'&&b.network?.trim()).map(b=>b.network!.trim()))],US:[...new Set((g.tvBroadcasts||[]).filter(b=>b.countryCode?.toUpperCase()==='US'&&b.network?.trim()).map(b=>b.network!.trim()))]};
-   return {channelsByCountry,id:'nhl-'+g.id,name:nhlName(g.awayTeam)+' vs '+nhlName(g.homeTeam),sport:'Hockey',league:'NHL',startsAt:g.startTimeUTC,channels,channelStatus:channels.length?'listed':'unavailable',state:nhlState(g.gameState),source:'NHL score/schedule',sourceUrl:'https://www.nhl.com/schedule'};
+   const state=nhlState(g.gameState);
+   // A score only means something once the game has actually started —
+   // showing "0-0" for a game that hasn't started yet would read as a
+   // real (if boring) result rather than "nothing has happened".
+   const hasScore=state!=='pre'&&typeof g.awayTeam?.score==='number'&&typeof g.homeTeam?.score==='number';
+   return {channelsByCountry,id:'nhl-'+g.id,name:nhlName(g.awayTeam)+' vs '+nhlName(g.homeTeam),sport:'Hockey',league:'NHL',startsAt:g.startTimeUTC,channels,channelStatus:channels.length?'listed':'unavailable',state,awayScore:hasScore?g.awayTeam!.score:undefined,homeScore:hasScore?g.homeTeam!.score:undefined,source:'NHL score/schedule',sourceUrl:'https://www.nhl.com/schedule'};
  });
 }
 const leagues=[
@@ -114,7 +131,8 @@ async function espn(date:string,country:Country):Promise<Game[]>{
  const competition=e.competitions?.[0];
  const byCountry=channelsFromCompetition(competition);
  const channels=country==='BOTH'?[...new Set([...byCountry.CA,...byCountry.US])]:byCountry[country];
- return {id:'espn-'+l.path+'-'+e.id,name:e.name!,sport:l.sport,league:l.league,startsAt:e.date!,channels,channelsByCountry:byCountry,channelStatus:channels.length?'listed' as const:'unavailable' as const,state:espnState(competition?.status),stateDetail:competition?.status?.type?.shortDetail,source:'ESPN',sourceUrl:l.league==='PWHL'?'https://www.thepwhl.com/en/where-to-watch':l.league.includes('College')||l.league.startsWith('NCAA')?'https://www.espn.com/watch/':l.league==='WNBA'?'https://www.wnba.com/schedule':'https://www.espn.com/'};
+ const state=espnState(competition?.status);
+ return {id:'espn-'+l.path+'-'+e.id,name:e.name!,sport:l.sport,league:l.league,startsAt:e.date!,channels,channelsByCountry:byCountry,channelStatus:channels.length?'listed' as const:'unavailable' as const,state,stateDetail:competition?.status?.type?.shortDetail,...espnScores(competition,state),source:'ESPN',sourceUrl:l.league==='PWHL'?'https://www.thepwhl.com/en/where-to-watch':l.league.includes('College')||l.league.startsWith('NCAA')?'https://www.espn.com/watch/':l.league==='WNBA'?'https://www.wnba.com/schedule':'https://www.espn.com/'};
  });
  }));
  return results.flatMap(r=>r.status==='fulfilled'?r.value:[]);

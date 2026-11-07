@@ -50,7 +50,7 @@ export function AuthStatus() {
   }, []);
 
   if (state === "loading") return <span className="soon">·</span>;
-  if (state === "signed-out") return <a className="soon" href={`${BEAU_URL}/login`}>Sign in</a>;
+  if (state === "signed-out") return <a className="soon" href={`${BEAU_URL}/login?next=vela`}>Sign in</a>;
   if (state === "subscribed") return <span className="soon" style={{ color: "#78c89a" }}>Subscribed</span>;
   return <a className="soon" href={`${BEAU_URL}/portal`}>Subscribe for more</a>;
 }
