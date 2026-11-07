@@ -36,10 +36,19 @@ export function AuthStatus() {
           setState("signed-out");
           return;
         }
+        // RLS alone already scopes this to the caller's own row (the
+        // table's one policy is `user_id = auth.uid()`), but a security
+        // review flagged that relying on RLS as the SOLE boundary here is
+        // a literal departure from this project's own standing rule that
+        // RLS must be a second layer, not a substitute for application-
+        // layer filtering. Adding the explicit `user_id` filter costs
+        // nothing and brings this into compliance with that rule directly
+        // — simpler and safer than arguing for an exception to it.
         const { data } = await supabase
           .from("product_subscriptions")
           .select("product, status, current_period_end")
           .eq("product", "vela")
+          .eq("user_id", user.id)
           .maybeSingle<ProductSubscription>();
         setState(hasAccess(data ?? undefined) ? "subscribed" : "not-subscribed");
       } catch {
