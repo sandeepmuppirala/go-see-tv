@@ -9,8 +9,8 @@
  * the guide stays exactly as free/functional as it already was. Which
  * specific VELA features (if any) should sit behind the subscription is
  * a product decision for the founder to make explicitly, not something
- * to decide by unilaterally paywalling what currently works. See
- * docs/decision-log.md's BEAU billing entry.
+ * to decide by unilaterally paywalling what currently works. See the
+ * beau repo's docs/decision-log.md's "BEAU billing entry".
  */
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";

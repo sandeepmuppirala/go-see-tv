@@ -19,3 +19,19 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run build
       - run: npm run test:e2e
+
+  handoff-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # Fails the build if this app's handoff page or entitlements.ts
+      # has drifted from their byte-identical counterparts in
+      # go-see-events (ORBI) and beau -- found already drifted once
+      # (the handoff page's async/await vs .then()) before this check
+      # existed, at just two products. A network failure reaching a
+      # sibling repo is treated as "couldn't check", not confirmed
+      # drift, and doesn't fail this job.
+      - run: npm run check:drift
