@@ -12,6 +12,10 @@
 .liveBadge{display:inline-flex;align-items:center;gap:5px;background:#3a1620;color:#ff9b9b;border:1px solid #6b2c38;border-radius:999px;padding:3px 9px;margin-right:8px;font-size:11px;letter-spacing:.5px}
 .liveBadge .liveDot{width:6px;height:6px}
 .scoreLine{font-size:22px;font-weight:800;color:#fff;letter-spacing:-.5px;margin:2px 0 4px}
+.scoreTextLine{font-size:14px;font-weight:700;color:#e1d8ff;margin:2px 0 4px;line-height:1.4}
+.pullIndicator{display:flex;align-items:center;justify-content:center;overflow:hidden;color:#a78bfa;transition:height .15s ease,opacity .15s ease}
+.pullIndicator .spin{animation:pull-spin .8s linear infinite}
+@keyframes pull-spin{to{transform:rotate(360deg)}}
 .genderFilter{display:inline-flex;background:#151623;padding:4px;border:1px solid #303044;border-radius:10px;gap:3px}
 .genderFilter button{background:transparent;border:0;color:#999aaf;border-radius:7px;padding:9px 13px;font-weight:700;font-size:12px}
 .genderFilter button.active{background:#302451;color:#e1d8ff}
@@ -29,7 +33,7 @@ body>main{flex:1;min-height:0;height:100%;display:flex;flex-direction:column;ove
 .eyebrow{font-size:10px;letter-spacing:1.5px}
 .countries{padding:3px;gap:3px}
 .countries button{padding:8px 13px;font-size:12px}
-.catalog{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;width:100%;max-width:1180px;padding:15px 22px 22px;scrollbar-width:thin}
+.catalog{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:none;width:100%;max-width:1180px;padding:15px 22px 22px;scrollbar-width:thin}
 .sectionHead h2{font-size:26px;margin:5px 0 12px}
 .featuredLeagues{padding:3px 0 10px}
 .featuredLeagues button{padding:8px 12px;font-size:12px}
