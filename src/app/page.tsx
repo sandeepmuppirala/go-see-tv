@@ -16,7 +16,16 @@ const dateToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Toronto',
 // first-time stranger, every time.
 const PREFS_KEY='vela-filter-prefs';
 type GenderFilter='both'|'men'|'women';
-type SavedPrefs={country?:Country;sport?:string;league?:string;genderFilter?:GenderFilter};
+// genderFilter deliberately isn't persisted here (see the hydration
+// effect below) -- unlike country/sport/league, which are stable "who
+// I am" preferences, gender is a narrowing filter that fails silently
+// when forgotten: a visitor who touched "Women's" once, for one
+// specific check, would have it still applied weeks later with no
+// error or empty-state explanation -- entire leagues just vanish.
+// Always starting from "both" costs one tap for a women's-sports-only
+// visitor to re-narrow; persisting it costs every other visitor a
+// confusing "why is this missing" with no visible cause.
+type SavedPrefs={country?:Country;sport?:string;league?:string};
 function loadSavedPrefs():SavedPrefs{
  try{
    const raw=window.localStorage.getItem(PREFS_KEY);
@@ -34,11 +43,10 @@ export default function Home(){
    if(saved.country)setCountry(saved.country);
    if(saved.sport)setSport(saved.sport);
    if(saved.league)setLeague(saved.league);
-   if(saved.genderFilter)setGenderFilter(saved.genderFilter);
  },[]);
  useEffect(()=>{
-   try{window.localStorage.setItem(PREFS_KEY,JSON.stringify({country,sport,league,genderFilter}))}catch{/* private-browsing or blocked storage -- just don't persist, never crash the page over it */}
- },[country,sport,league,genderFilter]);
+   try{window.localStorage.setItem(PREFS_KEY,JSON.stringify({country,sport,league}))}catch{/* private-browsing or blocked storage -- just don't persist, never crash the page over it */}
+ },[country,sport,league]);
  // `force` bypasses this route's own ISR-style response cache (the route
  // sets `revalidate=900`) via a cache-busting query param -- used only by
  // the manual pull-to-refresh gesture below, never the normal country/
