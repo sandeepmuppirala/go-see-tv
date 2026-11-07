@@ -12,6 +12,10 @@
 .liveBadge{display:inline-flex;align-items:center;gap:5px;background:#3a1620;color:#ff9b9b;border:1px solid #6b2c38;border-radius:999px;padding:3px 9px;margin-right:8px;font-size:11px;letter-spacing:.5px}
 .liveBadge .liveDot{width:6px;height:6px}
 .scoreLine{font-size:22px;font-weight:800;color:#fff;letter-spacing:-.5px;margin:2px 0 4px}
+.genderFilter{display:inline-flex;background:#151623;padding:4px;border:1px solid #303044;border-radius:10px;gap:3px}
+.genderFilter button{background:transparent;border:0;color:#999aaf;border-radius:7px;padding:9px 13px;font-weight:700;font-size:12px}
+.genderFilter button.active{background:#302451;color:#e1d8ff}
+@media(max-width:700px){.genderFilter button{padding:7px 9px;font-size:11px}}
 
 /* VELA single-viewport app shell: keep the page fixed and let the guide scroll internally. */
 html,body{height:100%;overflow:hidden}
