@@ -6,6 +6,12 @@ const sample={country:'BOTH',date:'2026-10-26',games:[
 test.beforeEach(async ({page})=>{
  await page.route('**/api/broadcasts?**',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(sample)}));
  await page.goto('/');
+ // Filter choices now persist in localStorage across real visits (a
+ // deliberate retention feature) -- these tests assert default-state
+ // behavior, so each one needs a genuinely fresh, unpersisted start,
+ // not whatever an earlier test in this same browser context left behind.
+ await page.evaluate(()=>localStorage.clear());
+ await page.reload();
 });
 test('defaults to USA & Canada and labels channels separately',async ({page})=>{
  await expect(page.getByRole('button',{name:/USA & Canada/})).toHaveClass(/selected/);
