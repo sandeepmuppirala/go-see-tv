@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "check:drift": "node scripts/check-drift.mjs"
   },
   "dependencies": {
     "next": "^15.5.0",
