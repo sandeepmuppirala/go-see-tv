@@ -7,6 +7,17 @@
 // treated as "couldn't check", not confirmed drift -- it warns and
 // exits 0 for that one check rather than failing the build over a
 // transient issue unrelated to this repo's own code.
+//
+// Known limitation, not yet solved: beau and go-see-events are both
+// PRIVATE repos (confirmed directly); unauthenticated
+// raw.githubusercontent.com 404s on a private repo, so both of this
+// script's own checks currently always hit the "couldn't check" path,
+// never actually comparing anything. Fixing this would mean this repo
+// (public) holding a read-scoped token for two other private repos --
+// a real secret-provisioning decision, not something to wire in
+// silently. go-see-events' and beau's own equivalent checks (fetching
+// THIS repo, which is public) work fully today and already cover one
+// direction of every pair.
 import { readFileSync } from "node:fs";
 
 const CHECKS = [

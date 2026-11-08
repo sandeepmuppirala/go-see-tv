@@ -14,14 +14,17 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+// Everything between the markers below is kept byte-identical to the
+// same block in go-see-events (ORBI)'s own src/app/auth/handoff/page.tsx.
+// scripts/check-drift.mjs enforces this by fetching the other repo's
+// current file from GitHub and diffing this exact region. Found
+// already drifted once (async/await vs .then()) before this check
+// existed, at just two products — see ADR-026's architecture review
+// amendment for why this exists at all. This intro comment is
+// deliberately OUTSIDE the markers -- it names the sibling file, so
+// it can never be byte-identical to the sibling's own copy of this
+// same comment.
 // ---BEGIN SHARED HANDOFF LOGIC---
-// Kept byte-identical to the same block in go-see-events (ORBI)'s own
-// src/app/auth/handoff/page.tsx — a drift-detection test in each repo
-// (tests/drift/handoff-page.test.ts) enforces this by fetching the
-// other repo's current file from GitHub and diffing this exact region.
-// Found already drifted once (async/await vs .then()) before this
-// check existed, at just two products — see ADR-026's architecture
-// review amendment for why this exists at all.
 export default function HandoffPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
