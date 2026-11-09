@@ -22,8 +22,19 @@ export function FollowTeamToggle({ slug, label }: { slug: string; label: string 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const supabase = createClient();
     let active = true;
+    let supabase: ReturnType<typeof createClient>;
+    try {
+      supabase = createClient();
+    } catch {
+      // Same degrade-safely pattern ORBI's own useAuth hook establishes:
+      // a missing Supabase config must degrade this one widget to
+      // signed-out, never crash or hang the whole page (confirmed real
+      // in CI, which doesn't inject these env vars yet -- see
+      // tests/e2e/favorites.spec.ts).
+      setUserId(null);
+      return;
+    }
     (async () => {
       const { data } = await supabase.auth.getUser();
       if (!active) return;

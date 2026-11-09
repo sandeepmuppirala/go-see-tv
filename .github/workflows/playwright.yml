@@ -9,6 +9,18 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # NEXT_PUBLIC_* values are public by Next.js's own convention (they
+    # ship in the client JS bundle to every visitor already) -- safe as
+    # repository secrets here, not sensitive the way a service-role key
+    # would be. Until these are added in the repo's Settings > Secrets,
+    # they're unset (same as today) and the two tests in
+    # tests/e2e/favorites.spec.ts that need them skip themselves with a
+    # clear reason (test.skip(RUNNING_IN_CI, ...)) rather than failing --
+    # see that file's own comment on why `process.env.CI` is the
+    # detection, not these variables directly.
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

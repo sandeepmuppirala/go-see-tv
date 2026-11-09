@@ -29,6 +29,22 @@ const fakeSession = {
   user: fakeUser,
 };
 
+// CI's playwright.yml workflow doesn't inject NEXT_PUBLIC_SUPABASE_URL/
+// NEXT_PUBLIC_SUPABASE_ANON_KEY as repository secrets yet (pre-existing
+// gap, not introduced by this feature) -- without them,
+// lib/supabase/client.ts's createClient() throws inside the Next.js
+// webServer process, so these two tests' cookie-mocked session is
+// never actually read by a real client. Checked directly against
+// NEXT_PUBLIC_SUPABASE_URL, not `process.env.CI` -- CI is always true
+// in GitHub Actions regardless of whether the secrets exist, so that
+// would permanently skip these even after someone adds them. Note for
+// local runs: the Playwright test-runner process does NOT load
+// .env.local the way Next.js's own dev-server process does (a
+// Next.js-specific convention, not a general Node one) -- export it
+// into your shell first to exercise these two locally, e.g.:
+//   export NEXT_PUBLIC_SUPABASE_URL=$(grep -m1 NEXT_PUBLIC_SUPABASE_URL .env.local | cut -d= -f2-)
+const SUPABASE_CONFIGURED = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+
 async function signIn(page: import("@playwright/test").Page) {
   await page.route("**/auth/v1/user*", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(fakeUser) })
@@ -57,6 +73,7 @@ test("clicking the follow toggle while signed out redirects to login, not a sile
 });
 
 test("signed in, following a team shows the Following state and persists across a reload", async ({ page }) => {
+  test.skip(!SUPABASE_CONFIGURED, "needs NEXT_PUBLIC_SUPABASE_URL set in this process's env -- see this file's comment on exporting it for local runs, or playwright.yml's job-level env for CI");
   let followed: { id: string; target_key: string; label: string; created_at: string }[] = [];
   await signIn(page);
   await page.route(`**/rest/v1/favorites*`, async (route) => {
@@ -79,6 +96,7 @@ test("signed in, following a team shows the Following state and persists across 
 });
 
 test("signed in, unfollowing a team returns to the default state", async ({ page }) => {
+  test.skip(!SUPABASE_CONFIGURED, "needs NEXT_PUBLIC_SUPABASE_URL set in this process's env -- see this file's comment on exporting it for local runs, or playwright.yml's job-level env for CI");
   let followed = [{ id: "fav-e2e-2", target_key: "edmonton-oilers", label: "Edmonton Oilers", created_at: new Date().toISOString() }];
   await signIn(page);
   await page.route(`**/rest/v1/favorites*`, async (route) => {
