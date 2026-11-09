@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowUpRight, ShieldCheck, Tv2 } from "lucide-react";
 import { NHL_TEAMS, findNhlTeam } from "@/lib/nhl-teams";
 import { nhl } from "@/lib/nhl";
+import { FollowTeamToggle } from "./follow-team-toggle";
 
 export const revalidate = 900;
 
@@ -119,6 +120,8 @@ export default async function NhlTeamPage({ params }: { params: Promise<{ team: 
       <div className="trust" style={{ marginTop: 28 }}>
         <ShieldCheck size={17} /> Schedules and channel listings are sourced directly from the NHL. We won&apos;t invent a network assignment this feed doesn&apos;t supply.
       </div>
+
+      <FollowTeamToggle slug={team.slug} label={team.fullName} />
 
       <p style={{ marginTop: 32 }}>
         <Link href="/" style={{ color: "#a78bfa", fontWeight: 700 }}>
