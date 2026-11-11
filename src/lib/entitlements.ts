@@ -20,6 +20,11 @@ export type ProductSubscription = {
   current_period_end: string | null;
 };
 
+/** "Active" per the backend (go-see-events alembic migration
+ * a1c7f4e9b3d2_product_subscriptions.py)'s own status vocabulary, mirrored
+ * directly from Stripe. `trialing` counts as access; everything else
+ * (past_due, canceled, incomplete*, unpaid, paused) does not — a lapsed
+ * payment should not silently keep access, even briefly. */
 export function hasAccess(sub: ProductSubscription | undefined): boolean {
   return sub?.status === "active" || sub?.status === "trialing";
 }
